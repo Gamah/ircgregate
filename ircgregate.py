@@ -7,10 +7,10 @@ import os
 HOST = "irc.geekshed.net"
 PORT = 6667
  
-NICK = "statbott"
-IDENT = "statbot"
-REALNAME = "statbot"
-CHANNEL = "#jupiterbroadcasting"
+NICK = "changeme"
+IDENT = "changeme"
+REALNAME = "changeme"
+CHANNEL = "#changeme"
  
 CONNECTED = 0
 
@@ -26,7 +26,7 @@ s.send(bytes("USER %s %s bla :%s\r\n" % (IDENT, HOST, REALNAME), "UTF-8"))
 def dbi(s,w):
     if(s != "Jbot"):
        # if(len(w) <= 50):
-        os.system("mysql --user=root --password=swag -e \"INSERT INTO ircgregate.swagdata(user,word,timestamp) VALUES('%s','%s',now())\"" % (s, w))
+        os.system("mysql --user=changeme --password=changeme -e \"INSERT INTO ircgregate.swagdata(user,word,timestamp) VALUES('%s','%s',now())\"" % (s, w))
 def joinch(line):
     global CONNECTED
     if(line[1] == "376"):
