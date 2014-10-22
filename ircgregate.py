@@ -27,9 +27,13 @@ def dbi(s,w):
     if(s != "Jbot"):
        # if(len(w) <= 50):
         os.system("mysql --user=changeme --password=changeme -e \"INSERT INTO ircgregate.swagdata(user,word,timestamp) VALUES('%s','%s',now())\"" % (s, w))
+
+def dbnw(w):
+        os.system("mysql --user=changeme --password=changeme -e \"INSERT INTO ircgregate.coolwords(word) VALUES('%s')\"" % (w))
+
 def joinch(line):
     global CONNECTED
-    if(line[1] == "376"):
+    if(line[1] == "005"):
         print("Connected! Joining channel")
         s.send(bytes("JOIN %s \r\n" % (CHANNEL), "UTF-8"));
         CONNECTED = 1
@@ -61,6 +65,10 @@ def getwords(line):
         else:
             word = re.sub(r'[\W_]+', '',word)
         dbi(user,word)
+def newword(word):
+        if(word[:7] != "http://"):
+            dbnw(word)
+        
         
 while 1:
     global CONNECTED
@@ -73,10 +81,15 @@ while 1:
         print(line)
         if(line[0] == "PING"):
             s.send(bytes("PONG %s\r\n" % line[1], "UTF-8"))
-        if(CONNECTED == 0):
+        elif(CONNECTED == 0):
             joinch(line)
         else:
             if(line[2] == CHANNEL):
                 print(getusr(line))
                 print(getmsg(line))
-                getwords(line)
+                if(line[3] == ":!statbot"):
+                    if(line[4] == "suggest"):
+                        newword(line[5])
+                        s.send(bytes("PRIVMSG %s :Adding %s to words list! \r\n" % (CHANNEL, line[5]), "UTF-8"));
+                else:
+                    getwords(line)
