@@ -4,7 +4,7 @@ import string
 import re
 import os
  
-HOST = "irc.geekshed.net"
+HOST = "irc.changeme.net"
 PORT = 6667
  
 NICK = "changeme"
@@ -24,7 +24,7 @@ s.send(bytes("USER %s %s bla :%s\r\n" % (IDENT, HOST, REALNAME), "UTF-8"))
 #s.send(bytes("JOIN %s \r\n", % (CHANNEL) "UTF-8"));
 
 def dbi(s,w):
-    if(s != "Jbot"):
+    if(s != "Jbot" and s !="statbot"):
        # if(len(w) <= 50):
         os.system("mysql --user=changeme --password=changeme -e \"INSERT INTO ircgregate.swagdata(user,word,timestamp) VALUES('%s','%s',now())\"" % (s, w))
 
@@ -60,7 +60,7 @@ def getmsg(line):
 def getwords(line):
     user = getusr(line)
     for word in getmsg(line).split():
-        if(word[:7] == "http://"):
+        if(word[:7] == "http://" or word[:4] == "www." or word[:8] == "https://"):
             word = "hyperlink posted"
         else:
             word = re.sub(r'[\W_]+', '',word)
@@ -87,9 +87,7 @@ while 1:
             if(line[2] == CHANNEL):
                 print(getusr(line))
                 print(getmsg(line))
-                if(line[3] == ":!statbot"):
-                    if(line[4] == "suggest"):
-                        newword(line[5])
-                        s.send(bytes("PRIVMSG %s :Adding %s to words list! \r\n" % (CHANNEL, line[5]), "UTF-8"));
-                else:
-                    getwords(line)
+                getwords(line)
+            if(len(line) > 4 and line[2] == "statbot" and line[3] == ":suggest"):
+                newword(line[4])
+                print("yolo")
