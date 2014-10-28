@@ -72,7 +72,7 @@ def newword(word):
         
 while 1:
     global CONNECTED
-    readbuffer = readbuffer+s.recv(1024).decode("UTF-8")
+    readbuffer = readbuffer+s.recv(1024).decode("UTF-8",'ignore')
     temp = str.split(readbuffer, "\n")
     readbuffer=temp.pop( )
     for line in temp:
