@@ -4,13 +4,13 @@ import string
 import re
 import os
  
-HOST = "irc.changeme.net"
+HOST = "irc.geekshed.net"
 PORT = 6667
  
-NICK = "changeme"
-IDENT = "changeme"
-REALNAME = "changeme"
-CHANNEL = "#changeme"
+NICK = "statbot"
+IDENT = "statbot"
+REALNAME = "statbot"
+CHANNEL = "#jupiterbroadcasting"
  
 CONNECTED = 0
 
@@ -26,10 +26,10 @@ s.send(bytes("USER %s %s bla :%s\r\n" % (IDENT, HOST, REALNAME), "UTF-8"))
 def dbi(s,w):
     if(s != "Jbot" and s !="statbot"):
        # if(len(w) <= 50):
-        os.system("mysql --user=changeme --password=changeme -e \"INSERT INTO ircgregate.swagdata(user,word,timestamp) VALUES('%s','%s',now())\"" % (s, w))
+        os.system("mysql --user=root --password=swag -e \"INSERT INTO ircgregate.swagdata(user,word,timestamp) VALUES('%s','%s',now())\"" % (s, w))
 
 def dbnw(w):
-        os.system("mysql --user=changeme --password=changeme -e \"INSERT INTO ircgregate.coolwords(word) VALUES('%s')\"" % (w))
+        os.system("mysql --user=root --password=swag -e \"INSERT INTO ircgregate.coolwords(word) VALUES('%s')\"" % (w))
 
 def joinch(line):
     global CONNECTED
@@ -78,15 +78,14 @@ while 1:
     for line in temp:
         line = str.rstrip(line)
         line = str.split(line)
-        print(line)
+        #print(line)
         if(line[0] == "PING"):
             s.send(bytes("PONG %s\r\n" % line[1], "UTF-8"))
         elif(CONNECTED == 0):
             joinch(line)
         else:
             if(line[2] == CHANNEL):
-                print(getusr(line))
-                print(getmsg(line))
+                print(getusr(line)+ ': ' + getmsg(line) + '\n')
                 getwords(line)
             if(len(line) > 4 and line[2] == "statbot" and line[3] == ":suggest"):
                 newword(line[4])
