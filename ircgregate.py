@@ -4,13 +4,13 @@ import string
 import re
 import os
  
-HOST = "irc.geekshed.net"
+HOST = "irc.changeme.net"
 PORT = 6667
  
-NICK = "statbot"
-IDENT = "statbot"
-REALNAME = "statbot"
-CHANNEL = "#jupiterbroadcasting"
+NICK = "changeme"
+IDENT = "changeme"
+REALNAME = "changeme"
+CHANNEL = "#changeme"
  
 CONNECTED = 0
 
@@ -26,10 +26,10 @@ s.send(bytes("USER %s %s bla :%s\r\n" % (IDENT, HOST, REALNAME), "UTF-8"))
 def dbi(s,w):
     if(s != "Jbot" and s !="statbot"):
        # if(len(w) <= 50):
-        os.system("mysql --user=root --password=swag -e \"INSERT INTO ircgregate.swagdata(user,word,timestamp) VALUES('%s','%s',now())\"" % (s, w))
+        os.system("mysql --user=changeme --password=changeme -e \"INSERT INTO ircgregate.swagdata(user,word,timestamp) VALUES('%s','%s',now())\"" % (s, w))
 
 def dbnw(w):
-        os.system("mysql --user=root --password=swag -e \"INSERT INTO ircgregate.coolwords(word) VALUES('%s')\"" % (w))
+        os.system("mysql --user=changeme --password=changeme -e \"INSERT INTO ircgregate.coolwords(word) VALUES('%s')\"" % (w))
 
 def joinch(line):
     global CONNECTED
