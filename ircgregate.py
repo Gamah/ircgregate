@@ -67,7 +67,7 @@ def getwords(line):
         dbi(user,word)
 def newword(word):
         if(word[:7] != "http://"):
-            dbnw(word)
+            dbnw(re.sub(r'[\W_]+', '',word))
         
         
 while 1:
