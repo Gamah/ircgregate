@@ -5,14 +5,9 @@ import socket
 import string
 import re
 import os
-import pymysql
+import mysql.connector
 
-conn = pymysql.connect(host='changeme', port=3306, user='changeme', passwd='changeme', db='ircgregate', autocommit=True)
 
-cur = conn.cursor()
-
-cur.execute("SELECT NULL")
-NULLCHECK = cur.fetchall()
 
 HOST = "irc.changeme.net"
 PORT = 6667
@@ -25,45 +20,54 @@ CHANNEL = "#changeme"
 CONNECTED = 0
 
 readbuffer = ""
- 
-s=socket.socket( )
-s.connect((HOST, PORT))
 
-s.send(bytes("NICK %s\r\n" % NICK, "UTF-8"))
-s.send(bytes("USER %s %s bla :%s\r\n" % (IDENT, HOST, REALNAME), "UTF-8"))
-#s.send(bytes("JOIN %s \r\n", % (CHANNEL) "UTF-8"));
-#deprecated
-def dbi(s,w):
-    if(s != "JBot" and s !="statbot"):
-       # if(len(w) <= 50):
-        cur.execute("INSERT INTO ircgregate.swagdata(user,word,timestamp) VALUES('%s','%s',now())" % (s, w))
-def dbni(u,w):
-    cur.execute("INSERT INTO transactions(idword,iduser,timestamp) VALUES('%s','%s',now())" %(w, u))
-#depricated soon
-def dbnw(w):
-        cur.execute("INSERT INTO ircgregate.coolwords(word) VALUES('%s')" % (w))
-
-def dbwc(w):
-    cur.execute("SELECT wordCheck('%s')" % (w))
+conn = mysql.connector.connect(user='changeme', password='changeme', host='localhost', database='ircgregate', autocommit=True)
+cur = conn.cursor()
+cur.execute("SELECT NULL")
+NULLCHECK = cur.fetchall()
+def wordCheck(word):
+    cur.execute("SELECT wordCheck(%s)", (word,))
     WORDID = cur.fetchall()
     if(WORDID != NULLCHECK):
         WORDID = WORDID[0]
         print("word ", WORDID[0])
         return WORDID[0]
     else:
-        cur.execute("INSERT INTO words(word) VALUES('%s')" % (w))
-        return dbwc(w)
-
-def dbuc(u):
-    cur.execute("SELECT userCheck('%s')" % (u))
+        if(word[:7] == "http://" or word[:4] == "www." or word[:8] == "https://"):
+            cur.execute("INSERT IGNORE INTO words(word, type) VALUES(%s,1)", (word,))
+        else:
+            cur.execute("INSERT IGNORE INTO words(word, type) VALUES(%s,0)", (word,))
+        return wordCheck(word)
+def userCheck(user):
+    cur.execute("SELECT userCheck(%s)", (user,))
     USERID = cur.fetchall()
     if(USERID != NULLCHECK):
         USERID = USERID[0]
         print("user ", USERID[0])
         return USERID[0]
     else:
-        cur.execute("INSERT INTO users(user) VALUES('%s')" % (u))
-        return dbuc(u)
+        cur.execute("INSERT IGNORE INTO users(user) VALUES(%s)", (user,))
+        cur.execute("SELECT userCheck(%s)", (user,))
+        USERID = cur.fetchall()
+        USERID = USERID[0]
+        return userCheck(user)
+def sentenceCheck():
+    cur.execute("SELECT incSentence()")
+    SID = cur.fetchall()
+    SID = SID[0]
+    return SID[0]
+def transactionInsert(word, user, sentence):
+    cur.execute("INSERT INTO transactions(idword,iduser,idsentence,timestamp) VALUES(%s, %s, %s, now())", (word, user , sentence))
+def dbnw(w):
+    cur.execute("INSERT INTO ircgregate.coolwords(word) VALUES(%s)", (w,))
+      
+
+s=socket.socket( )
+s.connect((HOST, PORT))
+
+s.send(bytes("NICK %s\r\n" % NICK, "UTF-8"))
+s.send(bytes("USER %s %s bla :%s\r\n" % (IDENT, HOST, REALNAME), "UTF-8"))
+#s.send(bytes("JOIN %s \r\n", % (CHANNEL) "UTF-8"));
 
 def joinch(line):
     global CONNECTED
@@ -79,7 +83,7 @@ def getusr(line):
             break
         if(char != ":"):
             sender += char
-    return re.sub(r'[\W_]+', '',(sender))
+    return (sender)
 
 def getmsg(line):
     size = len(line)
@@ -93,18 +97,17 @@ def getmsg(line):
 
 def getwords(line):
     user = getusr(line)
-    userID = dbuc(user)
+    sentenceID = sentenceCheck()
+    userID = userCheck(user)
     for word in getmsg(line).split():
-        if(word[:7] == "http://" or word[:4] == "www." or word[:8] == "https://"):
-            word = "hyperlink posted"
+        if(len(word) < 51):
+            wordID = wordCheck(word)
+            transactionInsert(wordID,userID,sentenceID)
         else:
-            word = re.sub(r'[\W_]+', '',word)
-            wordID = dbwc(word)
-        #dbi(user,word)
-        dbni(userID,wordID)
+            s.send(bytes("PRIVMSG #swagswagswag :Fuck you %s!\r\n" % user, "UTF-8"))        
 def newword(word):
         if(word[:7] != "http://"):
-            dbnw(re.sub(r'[\W_]+', '',word))
+            dbnw(word)
         
         
 while 1:
