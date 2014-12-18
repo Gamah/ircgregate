@@ -1,4 +1,18 @@
-<HTML>
+<?php
+define('PAGE_CACHE_EXPIRES', 10000);
+define('PAGE_CACHE_FILEPATH', './.cached_stats.html');
+
+// Get the modification time of the cached page and
+// determine if it is within the expiration time
+$cached = filemtime(PAGE_CACHE_FILENAME);
+$expired = ($cached !== false && $cached > (microtime(true) - PAGE_CACHE_EXPIRES));
+if (!$expired) {
+echo file_get_contents(PAGE_CACHE_FILENAME);
+exit();
+}
+
+ob_start();
+?><HTML>
 <TITLE>IRCgregate - IRC Big Data Style</TITLE>
 <BODY>Welcome to -Gamah's IRC aggregation project! <BR>  
 The bot is:
@@ -109,3 +123,6 @@ mysqli_close($con);
 </div>
 </BODY>
 </HTML>
+<?php
+file_put_contents(PAGE_CACHE_FILENAME, ob_get_contents());
+ob_end_flush();
