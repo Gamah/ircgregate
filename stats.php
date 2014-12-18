@@ -4,10 +4,10 @@ define('PAGE_CACHE_FILEPATH', './.cached_stats.html');
 
 // Get the modification time of the cached page and
 // determine if it is within the expiration time
-$cached = filemtime(PAGE_CACHE_FILENAME);
+$cached = filemtime(PAGE_CACHE_FILEPATH);
 $expired = ($cached !== false && $cached > (microtime(true) - PAGE_CACHE_EXPIRES));
 if (!$expired) {
-echo file_get_contents(PAGE_CACHE_FILENAME);
+echo file_get_contents(PAGE_CACHE_FILEPATH);
 exit();
 }
 
@@ -124,5 +124,5 @@ mysqli_close($con);
 </BODY>
 </HTML>
 <?php
-file_put_contents(PAGE_CACHE_FILENAME, ob_get_contents());
+file_put_contents(PAGE_CACHE_FILEPATH, ob_get_contents());
 ob_end_flush();
