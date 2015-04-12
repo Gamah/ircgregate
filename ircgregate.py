@@ -1,186 +1,137 @@
-<HTML>
-<?php
-$time = microtime();
-$time = explode(' ', $time);
-$time = $time[1] + $time[0];
-$start = $time;
-?>
-<TITLE>IRCgregate - IRC Big Data Style</TITLE>
-<BODY>Welcome to -Gamah's IRC aggregation project! <BR>  
-The bot is:
- <?php
-$check = shell_exec("ps aux | grep 'SCREEN -S bot'");
-if(strstr($check,"python3")){
-echo "online!";
-}else{
-echo "offline!";
-}
-header( "refresh:30");
-?>
-<BR>
-Join irc.geekshed.net and type: "/msg statbot suggest [word/smiley] {text}" to add a word to the list!
-<BR><BR>
-Current channels idling:<BR>
-#jupiterbroadcasting<BR>
-<BR>
-<BR>
-<div style="float: left; margin-right: 20px">
-Suggested words, last 24 hours:
-<?php
-$con=mysqli_connect("127.0.0.1","root","swag","ircgregate");
-// Check connection
-if (mysqli_connect_errno()) {
-  echo "Failed to connect to MySQL: " . mysqli_connect_error();
-}
+#!/usr/bin/env python
 
-$result = mysqli_query($con,"SELECT * FROM wordUse2");
+import sys
+import socket
+import string
+import re
+import os
+import mysql.connector
 
-echo "<table border='1'>
-<tr>
-<th>Word</th>
-<th>Count</th>
-</tr>";
 
-while($row = mysqli_fetch_array($result)) {
-  echo "<tr>";
-  echo "<td>" . $row['word'] . "</td>";
-  echo "<td>" . $row['count'] . "</td>";
-  echo "</tr>";
-}
 
-echo "</table>";
+HOST = "lucifer.geekshed.net"
+PORT = 6667
+ 
+NICK = "statbot"
+IDENT = "statbot"
+REALNAME = "statbot"
+CHANNEL = "#jupiterbroadcasting"
+ 
+CONNECTED = 0
 
-mysqli_close($con);
-?>
-</div>
-<div style="float: left; margin-right: 20px">
-User mentions, last 24 hours:
-<?php
-$con=mysqli_connect("127.0.0.1","root","swag","ircgregate");
-// Check connection
-if (mysqli_connect_errno()) {
-  echo "Failed to connect to MySQL: " . mysqli_connect_error();
-}
+readbuffer = ""
 
-$result = mysqli_query($con,"SELECT * FROM usermentions2");
+conn = mysql.connector.connect(user='root', password='swag', host='localhost', database='ircgregate', autocommit=True)
+cur = conn.cursor()
+cur.execute("SELECT NULL")
+NULLCHECK = cur.fetchall()
+def wordCheck(word):
+    cur.execute("SELECT wordCheck(%s)", (word,))
+    WORDID = cur.fetchall()
+    if(WORDID != NULLCHECK):
+        WORDID = WORDID[0]
+        #print("word ", WORDID[0])
+        return WORDID[0]
+    else:
+        if(word[:7] == "http://" or word[:4] == "www." or word[:8] == "https://"):
+            cur.execute("INSERT IGNORE INTO words(word, type) VALUES(%s,1)", (word,))
+        else:
+            cur.execute("INSERT IGNORE INTO words(word, type, wordnochar) VALUES(%s,0,alphanum(%s))", (word,word))
+        return wordCheck(word)
+def userCheck(user):
+    cur.execute("SELECT userCheck(%s)", (user,))
+    USERID = cur.fetchall()
+    if(USERID != NULLCHECK):
+        USERID = USERID[0]
+        #print("user ", USERID[0])
+        return USERID[0]
+    else:
+        cur.execute("INSERT IGNORE INTO users(user) VALUES(%s)", (user,))
+        cur.execute("SELECT userCheck(%s)", (user,))
+        USERID = cur.fetchall()
+        USERID = USERID[0]
+        return userCheck(user)
+def sentenceCheck():
+    cur.execute("SELECT incSentence()")
+    SID = cur.fetchall()
+    SID = SID[0]
+    return SID[0]
+def transactionInsert(word, user, sentence):
+    cur.execute("INSERT INTO transactions(idword,iduser,idsentence,timestamp) VALUES(%s, %s, %s, now())", (word, user , sentence))
+def coolword(word):
+    WORDID = wordCheck(word)
+    cur.execute("UPDATE words SET isCool = 1 WHERE id = %s AND type = 0;", (WORDID,))
+def makesmiley(word):
+    WORDID = wordCheck(word)
+    cur.execute("UPDATE words SET type = 2 where id = %s AND type = 0",(WORDID,))
+      
 
-echo "<table border='1'>
-<tr>
-<th>User</th>
-<th>Times Mentioned</th>
-</tr>";
+s=socket.socket( )
+s.connect((HOST, PORT))
 
-while($row = mysqli_fetch_array($result)) {
-  echo "<tr>";
-  echo "<td>" . $row['user'] . "</td>";
-  echo "<td>" . $row['mentions'] . "</td>";
-  echo "</tr>";
-}
+s.send(bytes("NICK %s\r\n" % NICK, "UTF-8"))
+s.send(bytes("USER %s %s bla :%s\r\n" % (IDENT, HOST, REALNAME), "UTF-8"))
+#s.send(bytes("JOIN %s \r\n", % (CHANNEL) "UTF-8"));
 
-echo "</table>";
+def joinch(line):
+    global CONNECTED
+    if(line[1] == "005"):
+        print("Connected! Joining channel")
+        s.send(bytes("JOIN %s \r\n" % (CHANNEL), "UTF-8"));
+        CONNECTED = 1
 
-mysqli_close($con);
-?>
-</div>
-<div style="float: left; margin-right: 20px">
-User message count, last 24 hours:
-<?php
-$con=mysqli_connect("127.0.0.1","root","swag","ircgregate");
-// Check connection
-if (mysqli_connect_errno()) {
-  echo "Failed to connect to MySQL: " . mysqli_connect_error();
-}
+def getusr(line):
+    sender = ""
+    for char in line[0]:
+        if(char == "!"):
+            break
+        if(char != ":"):
+            sender += char
+    return (sender)
 
-$result = mysqli_query($con,"SELECT * FROM userWordCount2");
+def getmsg(line):
+    size = len(line)
+    i = 3
+    message = ""
+    while(i < size): 
+        message += line[i] + " "
+        i = i + 1
+    message.lstrip(":")
+    return message[1:]
 
-echo "<table border='1'>
-<tr>
-<th>User</th>
-<th>Messages</th>
-</tr>";
+def getwords(line):
+    user = getusr(line)
+    sentenceID = sentenceCheck()
+    userID = userCheck(user)
+    for word in getmsg(line).split():
+        wordID = wordCheck(word)
+        transactionInsert(wordID,userID,sentenceID)
+        
 
-while($row = mysqli_fetch_array($result)) {
-  echo "<tr>";
-  echo "<td><a href=\"http://gamah.net/ircgregate/usermessages.php?user=" . $row['user'] . "\">" . $row['user'] . "</a></td>";
-  echo "<td>" . $row['messages'] . "</td>";
-  echo "</tr>";
-}
-
-echo "</table>";
-mysqli_close($con);
-?>
-<BR>
-<BR>
-</div>
-<div style="float: left; margin-right: 20px">
-Hyperlinks posted, last 24 hours:
-<?php
-$con=mysqli_connect("127.0.0.1","root","swag","ircgregate");
-// Check connection
-if (mysqli_connect_errno()) {
-  echo "Failed to connect to MySQL: " . mysqli_connect_error();
-}
-
-$result = mysqli_query($con,"SELECT * FROM hyperlinks");
-
-echo "<table border='1'>
-<tr>
-<th>Url</th>
-<th>Count</th>
-</tr>";
-
-while($row = mysqli_fetch_array($result)) {
-  echo "<tr>";
-  echo "<td><a href=\"" . $row['url'] . "\">" . substr($row['url'], 0, 40) . "</a></td>";
-  echo "<td>" . $row['Count'] . "</td>";
-  echo "</tr>";
-}
-
-echo "</table>";
-mysqli_close($con);
-?>
-<BR>
-<BR>
-</div>
-<div style="float: left; margin-right: 20px">
-Smiley count, last 24 hours:
-<?php
-$con=mysqli_connect("127.0.0.1","root","swag","ircgregate");
-// Check connection
-if (mysqli_connect_errno()) {
-  echo "Failed to connect to MySQL: " . mysqli_connect_error();
-}
-
-$result = mysqli_query($con,"SELECT * FROM smileyuse");
-
-echo "<table border='1'>
-<tr>
-<th>Smiley</th>
-<th>Count</th>
-</tr>";
-
-while($row = mysqli_fetch_array($result)) {
-  echo "<tr>";
-  echo "<td>" . $row['smiley'] . "</a></td>";
-  echo "<td>" . $row['count'] . "</td>";
-  echo "</tr>";
-}
-
-echo "</table>";
-mysqli_close($con);
-?>
-<BR>
-<BR>
-<?php
-$time = microtime();
-$time = explode(' ', $time);
-$time = $time[1] + $time[0];
-$finish = $time;
-$total_time = round(($finish - $start), 4);
-echo 'Page generated in '.$total_time.' seconds.';
-?>
-<BR>
-<BR>
-</div>
-</BODY>
-</HTML>
+        
+        
+while 1:
+    global CONNECTED
+    readbuffer = readbuffer+s.recv(1024).decode("UTF-8",'ignore')
+    temp = str.split(readbuffer, "\n")
+    readbuffer=temp.pop( )
+    for line in temp:
+        line = str.rstrip(line)
+        line = str.split(line)
+        #print(line)
+        if(line[0] == "PING"):
+            s.send(bytes("PONG %s\r\n" % line[1], "UTF-8"))
+        elif(CONNECTED == 0):
+            joinch(line)
+        else:
+            if(line[2] == CHANNEL):
+                print(getusr(line)+ ': ' + getmsg(line) + '\n')
+                getwords(line)
+            if(len(line) > 5 and line[2] == NICK and line[3] == ":suggest"):
+                if(line[4] == "word"):
+                    coolword(line[5])
+                elif(line[4] == "smiley"):
+                    makesmiley(line[5])
+                else:
+                    print("bad arg")
+                print(line[5], " suggested as ", line[4])
