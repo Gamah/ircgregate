@@ -2,14 +2,17 @@
 define('PAGE_CACHE_EXPIRES', 10000);
 define('PAGE_CACHE_FILEPATH', './.cached_stats.html');
 
+define('PAGE_CACHE_DEBUG', false);
+
 // Get the modification time of the cached page and
 // determine if it is within the expiration time
 $cached = filemtime(PAGE_CACHE_FILEPATH);
 $expired = ($cached !== false && $cached > (microtime(true) - PAGE_CACHE_EXPIRES));
 if (!$expired) {
+if (PAGE_CACHE_DEBUG) error_log('Serving cached stats page');
 echo file_get_contents(PAGE_CACHE_FILEPATH);
 exit();
-}
+} else if (!PAGE_CACHE_DEBUG) error_log('Generating new stats page');
 
 ob_start();
 
